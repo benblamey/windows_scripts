@@ -1,0 +1,2 @@
+sendemail -f robert@blamey1585.freeserve.co.uk -t penny@tucoyse.co.uk -u Last night -m You left me on last night and I turned myself off. your Computer. xx -s smtp.orangehome.co.uk:25
+shutdown -s -t 600

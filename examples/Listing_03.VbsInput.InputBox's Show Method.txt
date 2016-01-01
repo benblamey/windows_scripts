@@ -1,0 +1,8 @@
+
+LISTING 3: VbsInput.InputBox’s Show Method
+
+strText = dlg.Show
+If strText = "" Then
+	MsgBox "No password has been entered"
+End If
+

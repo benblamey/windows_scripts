@@ -1,0 +1,13 @@
+option explicit
+dim WS,WN,fso,UN,dater,f,f2,strLine,strPassUser,strPassB,response,reeturn,daterr
+Set WS = WScript.CreateObject("WScript.Shell")
+'******
+const backupselection="D:\backup\selection.bks"
+const backuptgtfolder = "D:\backup\scheduled\"
+strPassB = WS.RegRead("HKLM\Software\BFN\strPassB")
+'***************
+'incremental backup
+reeturn = WS.Run("psexec -u admin -p " & strPassB & " ntbackup.exe backup " & chr(34) & "@" & backupselection & chr(34) & " /J " & chr(34) & "weekly backup" & int(Timer) & chr(34) & " /F " & chr(34) & backuptgtfolder & DatePart("YYYY", date) & "-" & DatePart("m",date) & "-" & DatePart("d",date) & "-"& int(Timer) & "-norm-extra.bkf" & chr(34) & " /D " & chr(34) & "Set created " & Date & chr(34) & " /V:no /R:no /L:f /M normal /RS:no /HC:off /SNAP:off", , -1)
+if reeturn<>0 then Wscript.Echo("Extra Backup Terminated with an error code of: " & reeturn & ". Please report this to Ben.")
+if reeturn = 0 then Wscript.Echo("Backup Terminated with an error code of 0, this means the backup was successful.")
+WS.RegWrite "HKLM\Software\BFN\Backup", Date, "REG_SZ"

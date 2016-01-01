@@ -1,0 +1,112 @@
+option explicit
+dim WS,WN,fso,UN,dater,f,f2,strLine,strPassUser,strPassB,response,reeturn,daterr,returnn
+Set WS = WScript.CreateObject("WScript.Shell")
+Set WN = WScript.CreateObject("WScript.Network")
+Set fso = CreateObject("Scripting.FileSystemObject")
+'******
+Const bfnRoot = "D:\bfn_data\"
+Const bfnexecroot = "D:\bfn_data\scripts"
+const PageDefrag= 5 'number of days between defrag pagefile
+const DefragDelay= 7 'number of days between defrag
+const BackupDelay= 12 'number of days between backups
+const tucoysecalbackup= 1 'number of days tucoyse cal update
+const backupselection="D:\backup\selection.bks"
+const backuptgtfolder = "D:\backup\scheduled\"
+Const AUTOLOGONSTATUS="1"
+strPassUser = WS.RegRead("HKLM\Software\BFN\strPassA")
+strPassB = WS.RegRead("HKLM\Software\BFN\strPassB")
+UN=UCASE(WN.UserName)
+const WinLogRoot = "HKLM\Software\Microsoft\Windows NT\CurrentVersion\Winlogon\"
+'***************
+
+
+
+if UN="ADMIN" then
+	WS.RegWrite WinLogRoot&"DefaultUserName","admin","REG_SZ"
+	WS.RegWrite WinLogRoot&"AutoAdminLogon",AUTOLOGONSTATUS,"REG_SZ"
+	WS.RegWrite WinLogRoot&"DefaultPassword",strPassB,"REG_SZ"
+	'show hidden files for admin
+	WS.RegWrite "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\Hidden", 1, "REG_DWORD"
+	' set skype to not be supernode, (also set in logoff)
+	WS.Run("regedit.exe /s "&bfnexecroot&"\skypescope.reg")
+end if
+if UN="USER" then
+	WS.RegWrite WinLogRoot&"DefaultUserName","USER","REG_SZ"
+	WS.RegWrite WinLogRoot&"AutoAdminLogon",AUTOLOGONSTATUS,"REG_SZ"
+	WS.RegWrite WinLogRoot&"DefaultPassword",strPassUser,"REG_SZ"
+	WS.RegWrite "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\Hidden", 2, "REG_DWORD" 'hide hidden files for user
+end if
+if UN="ADMINISTRATOR" then
+	' set skype to not be supernode, (also set in logoff)
+	WS.Run("regedit.exe /s "&bfnexecroot&"\skypescope.reg")
+end if
+
+'***************
+' Tucoyse Cal
+dater = RegRead("HKLM\Software\BFN\tuccal")
+dater = DateDiff("d", Date, dater)
+if dater =< -tucoysecalbackup then 
+	WS.Run "wscript D:\DOCS\Tucoyse\apps\tucoysecal\cal.vbs silent2", , -1
+	WS.RegWrite "HKLM\Software\BFN\tuccal", Date, "REG_SZ"
+end if 
+
+'***************
+'file defrag
+dater = RegRead("HKLM\Software\BFN\Defrag")
+dater = DateDiff("d", Date, dater)
+if dater =< -DefragDelay then 
+	response=MsgBox ("Disk Maintenance (Defragmentation) is due. Begin Now? If you were prefer not to do it now, you will be prompted again the next time you logon. If you choose to do it now, you must wait until it is finished before you use the computer.", 4, "Logon Script")
+	if response=6 then 
+		WS.Run "psexec -u admin -p " & strPassB & " defrag C: -v", , -1
+		WS.Run "psexec -u admin -p " & strPassB & " defrag D: -v", , -1
+		WS.RegWrite "HKLM\Software\BFN\Defrag", Date, "REG_SZ"
+		Wscript.Echo("Defragmentation Completed.")
+	end if	
+end if
+
+'***************
+'incremental backup
+dater = RegRead("HKLM\Software\BFN\Backup")
+dater = DateDiff("d", Date, dater)
+if dater =< -BackupDelay then 
+	response=MsgBox ("A file backup is due. Begin Now? If you were prefer not to do it now, you will be prompted again the next time you logon. If you choose to do it now, you must wait until it is finished before you use the computer.", 4, "Logon Script")'
+	reeturn = WS.Run ("psexec -u admin -p " & strPassB & " ntbackup.exe backup " & chr(34) & "@" & backupselection & chr(34) & " /J " & chr(34) & "weekly backup" & int(Timer) & chr(34) & " /F " & chr(34) & backuptgtfolder & DatePart("YYYY", date) & "-" & DatePart("m",date) & "-" & DatePart("d",date) &"-"& int(Timer) & "-norm.bkf" & chr(34) & " /D " & chr(34) & "Set created " & Date & chr(34) & " /V:no /R:no /L:n /M normal /RS:no /HC:off /SNAP:off", , -1)
+		'(/M incremental for incremental or /M normal)
+		if reeturn<>0 then Wscript.Echo("Backup Terminated with an error code of: " & reeturn & ". Please report this to Ben.")
+		if reeturn = 0 then Wscript.Echo("Backup Terminated with an error code of 0, this means the backup was successful.")
+		WS.RegWrite "HKLM\Software\BFN\Backup", Date, "REG_SZ"
+
+end if
+'***************
+' Page Defrag
+dater = RegRead("HKLM\Software\BFN\PageDefrag")
+dater = DateDiff("d", Date, dater)
+if dater =< -PageDefrag then 
+WS.Run "psexec -u admin -p " & strPassB & " pagedfrg.exe -o -t 1", ,-1
+	WS.RegWrite "HKLM\Software\BFN\PageDefrag", Date, "REG_SZ"
+end if  
+
+'****WARNING FOR ADMIN*****
+if UN="ADMIN" then Wscript.Echo("WARNING: you are logged on as admin, for day to day use you need to use the other account ('user'). You can use the desktop shortcut 'Switch Users' to log on as 'user'.")
+
+'****start thunderbird for user, (so that it happens AFTER the defrag/backup)****
+if UN="USER" then
+	WS.Run """C:\Program files\Mozilla Thunderbird\Thunderbird.exe"""
+end if
+
+'##########################################
+Function RegRead(ByVal sRegValue)
+On Error Resume Next
+RegRead = WS.RegRead(sRegValue)
+' If the value does not exist, error is raised
+If Err Then
+	RegRead = "01/01/1986"
+	Err.clear
+End If
+' If a value is present but uninitialized the RegRead method
+' returns the input value in Win2k.
+If VarType(RegRead) < vbArray then
+	If RegRead = sRegValue Then RegRead = ""
+End If
+On Error Goto 0
+End Function

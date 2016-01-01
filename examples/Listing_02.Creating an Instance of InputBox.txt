@@ -1,0 +1,3 @@
+LISTING 2: Creating an Instance of InputBox
+
+Set dlg = CreateObject ("VbsInput.InputBox")

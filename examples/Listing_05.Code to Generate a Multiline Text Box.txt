@@ -1,0 +1,15 @@
+LISTING 5: Code to Generate a Multiline Text Box
+
+Dim dlg, strText
+Set dlg = CreateObject("VbsInput.InputBox")
+
+dlg.Title = "My Application"
+dlg.Label = "Enter your comments (max 250 characters)"
+dlg.Icon = "shell32.dll,54"
+dlg.multiline = True
+
+strText = dlg.Show()
+If strText <> "" Then
+  MsgBox strText
+End If
+
